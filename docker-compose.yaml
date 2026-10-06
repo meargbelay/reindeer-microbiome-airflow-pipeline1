@@ -1,0 +1,15 @@
+services:
+  airflow:
+    image: apache/airflow:2.9.3-python3.11
+    container_name: reindeer_airflow
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/project/scripts
+      - ./data:/opt/airflow/project/data
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "pip install --no-cache-dir pandas numpy scipy statsmodels &&
+               airflow standalone"
