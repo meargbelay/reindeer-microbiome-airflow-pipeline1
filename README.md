@@ -1,65 +1,88 @@
-# Reindeer Calf Microbiome Pipeline — Orchestrated with Airflow
+# Reindeer Calf Microbiome Pipeline — Orchestrated with Apache Airflow
 
-This project takes the bioinformatics pipeline from the thesis *"Microbiota
-and genetic variation in reindeer calves"* and re-implements it as an
-**Airflow-orchestrated pipeline**, so each DADA2/phyloseq-style step becomes
-an Airflow task with explicit dependencies, retries, logging, and a UI to
-monitor runs — the same orchestration pattern used in data engineering.
+An Airflow-orchestrated bioinformatics pipeline, adapted from my Master's thesis
+*"Microbiota and genetic variation in reindeer calves: analysis of data in
+relation to survival"* (Swedish University of Agricultural Sciences, 2026).
 
-Since we don't have the original raw FASTQ files here, the `generate_raw_data`
-step fabricates a synthetic dataset with the same shape (108 samples, mouth/
-anus site, sex, survival). Every other step is genuine working logic (quality
-filtering, denoising, chimera removal, taxonomy assignment, diversity
-analysis, differential abundance testing) — just swap the synthetic
-generator for your real FASTQ inputs (or real DADA2 R scripts) when you're
-ready to run it on real data. That's the only step you'd ever need to
-replace.
+The original thesis analysis was a DADA2/R pipeline run manually, step by
+step. This project re-implements that pipeline as a set of orchestrated
+Airflow tasks — each stage (filtering, denoising, taxonomy assignment,
+diversity analysis, differential abundance testing) becomes its own task
+with explicit dependencies, automatic retries, logging, and a UI to monitor
+every run. It's the same core idea as a bioinformatics pipeline, built with
+the tooling used in production data engineering.
+
+**Status:** built, tested end to end, and running locally via Docker + Airflow.
+
+## Why this project
+
+My thesis work was fundamentally a data pipeline: raw sequencing data in,
+through cleaning and transformation, out to statistical results. This
+project is an exercise in taking that same logic and expressing it the way a
+data engineering team would — as a scheduled, monitored, reproducible DAG
+rather than a set of scripts run by hand.
 
 ## Pipeline structure
 
 ```
 generate_raw_data → quality_filter → learn_errors → denoise_and_merge
     → remove_chimeras → assign_taxonomy → build_phyloseq
-        → diversity_analysis       (parallel)
-        → differential_abundance   (parallel)
+        ├── diversity_analysis        (parallel)
+        └── differential_abundance    (parallel)
 ```
 
-This mirrors the thesis sections 4.4–5.7: DADA2 processing → ASV table →
-taxonomy → combined phyloseq object → alpha diversity/GLM → differential
-abundance (ALDEx2/MaAsLin2/ANCOM-BC stand-in).
+| Stage | Mirrors (from the thesis) |
+|---|---|
+| `quality_filter` | DADA2 `filterAndTrim()` |
+| `learn_errors` | DADA2 `learnErrors()` |
+| `denoise_and_merge` | DADA2 `dada()` + `mergePairs()` |
+| `remove_chimeras` | DADA2 `removeBimeraDenovo()` |
+| `assign_taxonomy` | DADA2 `assignTaxonomy()` against SILVA |
+| `build_phyloseq` | Building the combined `phyloseq` object in R |
+| `diversity_analysis` | Shannon diversity + binomial GLM vs. survival |
+| `differential_abundance` | ALDEx2 / MaAsLin2 / ANCOM-BC-style testing |
 
-## Option A: Run with Docker (recommended, easiest)
+**Note on data:** the original raw FASTQ files aren't included here, so
+`generate_raw_data` produces a synthetic dataset with the same shape as the
+real one (108 samples, oral/rectal site, sex, survival). Every other stage
+is genuine working logic — not a mock. Swapping in real FASTQ files or the
+original R scripts only requires changing this one step (see **Extending
+this project** below).
 
-Requires Docker Desktop installed and running.
+## Tech stack
+
+Python (pandas, numpy, scipy) · Apache Airflow · Docker · (designed to
+extend with R/DADA2)
+
+## Running it
+
+### Option A — Docker (recommended)
 
 ```bash
-cd reindeer-microbiome-airflow
+git clone https://github.com/meargbelay/reindeer-microbiome-airflow-pipeline.git
+cd reindeer-microbiome-airflow-pipeline
 docker compose up
 ```
 
-Wait ~1–2 minutes for Airflow to initialize. The first time it starts, it
-prints an admin username/password in the logs — look for a line like:
+Wait a minute or two for Airflow to initialize, then check the logs for a
+line like:
 
 ```
 standalone | Login with username: admin  password: <random-password>
 ```
 
-Then open **http://localhost:8080**, log in, find `reindeer_microbiome_pipeline`
-in the DAG list, un-pause it (toggle on the left), and click the ▶ (trigger)
-button to run it manually.
+Open **http://localhost:8080**, log in, un-pause `reindeer_microbiome_pipeline`
+in the DAG list, and click **Trigger DAG** (▶) to run it. Switch to the
+**Graph** view to watch each task turn green as it completes; click any task
+→ **Logs** to see its output.
 
-Click into the run to see the graph view — each box is a task, and you can
-watch them turn green as they complete. Click any task → "Logs" to see its
-print output.
+Stop with `Ctrl+C`, then `docker compose down`.
 
-To stop: `Ctrl+C`, then `docker compose down`.
-
-## Option B: Run without Docker (local Airflow install)
+### Option B — Local Airflow install (no Docker)
 
 ```bash
-cd reindeer-microbiome-airflow
 python3 -m venv venv
-source venv/bin/activate        # On Windows: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install "apache-airflow==2.9.3" --constraint \
   "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.3/constraints-3.11.txt"
 pip install -r requirements.txt
@@ -67,20 +90,21 @@ pip install -r requirements.txt
 export AIRFLOW_HOME=$(pwd)/airflow_home
 mkdir -p $AIRFLOW_HOME/dags
 cp dags/reindeer_microbiome_dag.py $AIRFLOW_HOME/dags/
+```
 
-# IMPORTANT: edit dags/reindeer_microbiome_dag.py and change PROJECT_DIR
-# from "/opt/airflow/project" to the absolute path of this folder, e.g.
-# PROJECT_DIR = "/Users/yourname/reindeer-microbiome-airflow"
+Before starting, open `dags/reindeer_microbiome_dag.py` and change
+`PROJECT_DIR` from `/opt/airflow/project` to the absolute path of this
+folder on your machine. Then:
 
+```bash
 airflow standalone
 ```
 
-Then open **http://localhost:8080** as above.
+Open **http://localhost:8080** as above.
 
-## Option C: Just run the pipeline directly (no Airflow at all)
+### Option C — Run the pipeline directly, no Airflow
 
-Useful for quickly checking the pipeline logic works before wiring it into
-Airflow:
+Useful for checking the pipeline logic in isolation:
 
 ```bash
 pip install -r requirements.txt
@@ -97,22 +121,26 @@ python3 scripts/diversity_analysis.py --input-dir $D/06_phyloseq --output-dir $D
 python3 scripts/differential_abundance.py --input-dir $D/06_phyloseq --output-dir $D/08_diffabund
 ```
 
-This exact sequence has been tested and runs end to end successfully.
+## Extending this project
 
-## Next steps (to make this a genuinely strong portfolio project)
+- **Real data:** replace `generate_raw_data.py`'s output with your actual
+  FASTQ files or existing ASV tables.
+- **Real DADA2/R:** swap the Python stand-ins for `quality_filter`,
+  `learn_errors`, `denoise_and_merge`, and `remove_chimeras` for
+  `BashOperator` tasks calling the original R scripts (`Rscript
+  filter_and_trim.R ...`) — Airflow doesn't care what language a task runs.
+- **Scheduling:** change `schedule=None` to `"@weekly"` (or similar) to
+  simulate a recurring pipeline for incoming sequencing batches.
+- **Data validation:** add a task after `build_phyloseq` that checks
+  invariants (e.g. no sample has zero total reads) and fails the run if
+  they're violated — a standard data-quality layer in production pipelines.
 
-1. **Swap in real data**: replace `generate_raw_data.py` with your actual
-   FASTQ files / existing ASV tables from the thesis project.
-2. **Swap in real DADA2**: replace the Python stand-ins for `quality_filter`,
-   `learn_errors`, `denoise_and_merge`, and `remove_chimeras` with
-   `BashOperator` calls to your actual R scripts (`Rscript filter_and_trim.R`),
-   since Airflow doesn't care what language a task runs in.
-3. **Add a schedule**: change `schedule=None` to e.g. `"@weekly"` if this
-   were a recurring pipeline (e.g. new sequencing batches arriving regularly).
-4. **Add data quality checks**: add a task after `build_phyloseq` that
-   asserts things like "no sample has zero total reads" and fails loudly if
-   not — this is the "data validation" layer from a full data engineering
-   pipeline.
-5. **Push to GitHub** with this README, and link it on your CV/LinkedIn as a
-   concrete "orchestrated a bioinformatics pipeline with Apache Airflow"
-   project.
+## Background
+
+Original thesis: Brhane, M. B. (2026). *Microbiota and genetic variation in
+reindeer calves: analysis of data in relation to survival.* Uppsala: SLU,
+Institutionen för husdjurens biovetenskaper (HBIO).
+
+## Author
+
+**Mearg Belay Brhane** — Bioinformatics · [GitHub](https://github.com/meargbelay) · [LinkedIn](https://www.linkedin.com/in/mearg-belay-brhane-a1388220a/)
