@@ -1,0 +1,77 @@
+{
+  "Alysiella": {
+    "mean": 60.80555555555556,
+    "std": 9.953591690386984,
+    "noise_floor": 46.0
+  },
+  "Capnocytophaga": {
+    "mean": 60.416666666666664,
+    "std": 9.805705949031845,
+    "noise_floor": 45.35
+  },
+  "Pseudomonas": {
+    "mean": 58.93518518518518,
+    "std": 8.469045503543295,
+    "noise_floor": 44.35
+  },
+  "Sphingomonas": {
+    "mean": 60.18518518518518,
+    "std": 9.261666699835612,
+    "noise_floor": 47.35
+  },
+  "Xylophilus": {
+    "mean": 58.824074074074076,
+    "std": 9.696158506793001,
+    "noise_floor": 44.0
+  },
+  "Olsenella": {
+    "mean": 58.407407407407405,
+    "std": 8.664070223735134,
+    "noise_floor": 45.0
+  },
+  "Monoglobus": {
+    "mean": 58.583333333333336,
+    "std": 9.377966820278422,
+    "noise_floor": 44.35
+  },
+  "Roseisolibacter": {
+    "mean": 59.388888888888886,
+    "std": 8.614086847242604,
+    "noise_floor": 45.0
+  },
+  "Parafilimonas": {
+    "mean": 59.52777777777778,
+    "std": 8.9395251011599,
+    "noise_floor": 44.35
+  },
+  "Desulfovibrio": {
+    "mean": 60.74074074074074,
+    "std": 9.189968495131104,
+    "noise_floor": 46.0
+  },
+  "Chitinophaga": {
+    "mean": 60.416666666666664,
+    "std": 9.784715335951653,
+    "noise_floor": 45.35
+  },
+  "Flexivirga": {
+    "mean": 59.53703703703704,
+    "std": 9.078500767501831,
+    "noise_floor": 44.0
+  },
+  "Nocardia": {
+    "mean": 57.71296296296296,
+    "std": 9.161123595461733,
+    "noise_floor": 43.0
+  },
+  "Fusobacterium": {
+    "mean": 59.48148148148148,
+    "std": 9.397237097914482,
+    "noise_floor": 43.0
+  },
+  "Proteobacteria_other": {
+    "mean": 58.101851851851855,
+    "std": 8.278945048617844,
+    "noise_floor": 45.35
+  }
+}

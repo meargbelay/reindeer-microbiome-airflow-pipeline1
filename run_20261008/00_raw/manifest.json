@@ -1,0 +1,22 @@
+{
+  "n_samples": 108,
+  "genera": [
+    "Alysiella",
+    "Capnocytophaga",
+    "Pseudomonas",
+    "Sphingomonas",
+    "Xylophilus",
+    "Olsenella",
+    "Monoglobus",
+    "Roseisolibacter",
+    "Parafilimonas",
+    "Desulfovibrio",
+    "Chitinophaga",
+    "Flexivirga",
+    "Nocardia",
+    "Fusobacterium",
+    "Proteobacteria_other"
+  ],
+  "seed": 42,
+  "note": "Synthetic stand-in data for demo purposes only."
+}

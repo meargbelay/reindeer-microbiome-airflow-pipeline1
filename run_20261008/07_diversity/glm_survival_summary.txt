@@ -1,0 +1,19 @@
+                 Generalized Linear Model Regression Results                  
+==============================================================================
+Dep. Variable:               survival   No. Observations:                  108
+Model:                            GLM   Df Residuals:                      104
+Model Family:                Binomial   Df Model:                            3
+Link Function:                  Logit   Scale:                          1.0000
+Method:                          IRLS   Log-Likelihood:                -73.857
+Date:                Thu, 08 Oct 2026   Deviance:                       147.71
+Time:                        13:01:19   Pearson chi2:                     108.
+No. Iterations:                     4   Pseudo R-squ. (CS):           0.009935
+Covariance Type:            nonrobust                                         
+==============================================================================
+                 coef    std err          z      P>|z|      [0.025      0.975]
+------------------------------------------------------------------------------
+const          3.7855      5.520      0.686      0.493      -7.033      14.604
+shannon       -1.6417      2.205     -0.745      0.456      -5.963       2.679
+site_mouth     0.0248      0.396      0.063      0.950      -0.751       0.801
+sex_m          0.2658      0.394      0.674      0.500      -0.507       1.039
+==============================================================================
