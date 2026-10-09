@@ -1,4 +1,4 @@
-"""
+r"""
 Airflow DAG: Reindeer Calf Microbiome Pipeline
 
 Orchestrates a stand-in version of the thesis pipeline end to end:
@@ -18,6 +18,8 @@ Orchestrates a stand-in version of the thesis pipeline end to end:
     build_phyloseq
          / \
  diversity  differential_abundance
+         \ /
+   load_to_snowflake
 
 Each task shells out to one of the scripts in ../scripts/, passing along a
 shared working directory so artifacts flow from one step to the next --
@@ -34,6 +36,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 
 PROJECT_DIR = "/opt/airflow/project"  # mounted project root inside the Airflow container
 SCRIPTS = f"{PROJECT_DIR}/scripts"
@@ -43,6 +46,27 @@ default_args = {
     "owner": "mearg",
     "retries": 1,
 }
+
+
+def _load_to_snowflake(run_dir: str, run_key: str):
+    """Load this run's results into Snowflake.
+
+    Credentials come from the Airflow connection "snowflake_default"
+    (Admin -> Connections), never from the code. Imports are done inside the
+    function so the DAG file still parses even if Snowflake packages are missing.
+    """
+    import sys
+
+    sys.path.insert(0, SCRIPTS)
+    from load_to_snowflake import load_run
+    from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+
+    conn = SnowflakeHook(snowflake_conn_id="snowflake_default").get_conn()
+    try:
+        counts = load_run(conn, run_dir, run_key)
+        print(f"Loaded rows per table: {counts}")
+    finally:
+        conn.close()
 
 with DAG(
     dag_id="reindeer_microbiome_pipeline",
@@ -128,8 +152,15 @@ with DAG(
         ),
     )
 
+    load_to_snowflake = PythonOperator(
+        task_id="load_to_snowflake",
+        python_callable=_load_to_snowflake,
+        op_kwargs={"run_dir": DATA, "run_key": "{{ ds_nodash }}"},  # both are templated by Airflow
+    )
+
     # Linear chain up through build_phyloseq, then it fans out into two
-    # independent analyses that can run in parallel.
+    # independent analyses that can run in parallel; once BOTH finish, the
+    # results are loaded into the Snowflake warehouse.
     (
         generate_raw_data
         >> quality_filter
@@ -139,4 +170,5 @@ with DAG(
         >> assign_taxonomy
         >> build_phyloseq
         >> [diversity_analysis, differential_abundance]
+        >> load_to_snowflake
     )
